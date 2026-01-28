@@ -1,59 +1,68 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import TaskTable from "../components/tasks/taskTable";
 import TaskForm from "../components/tasks/TaskForm";
 
+import { GET_TASKS_QUERY } from "../graphql/task/taskQuery";
+import { CREATE_TASK_MUTATION } from "../graphql/task/taskMutation";
+import { COMPLETE_TASK_MUTATION } from "../graphql/task/taskMutation";
+import { DELETE_TASK_MUTATION } from "../graphql/task/taskMutation";
+import { UPDATE_TASK_MUTATION } from "../graphql/task/taskMutation";
+import { useMutation } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 
 const DashboardPage = () => {
     const [tasks, setTasks] = useState([]);
     const [editingId, setEditingId] = useState(null);
-    const [taskTitle, setTaskTitle] = useState("");
-    const [taskDescription, setTaskDescription] = useState("");
+    const [title, setTaskTitle] = useState("");
+    const [description, setTaskDescription] = useState("");
+    const [dueDate] = useState("");
     const [editTitle, setEditTitle] = useState("");
     const [editDescription, setEditDescription] = useState("");
+    
+    const [loadTasks, { data }] = useLazyQuery(GET_TASKS_QUERY);
+    const [completeTask] = useMutation(COMPLETE_TASK_MUTATION);
+    const [deleteTask] = useMutation(DELETE_TASK_MUTATION, {
+        refetchQueries: [{ query: GET_TASKS_QUERY }],
+        awaitRefetchQueries: true,
+    });
+    const [updateTask] = useMutation(UPDATE_TASK_MUTATION, {
+        refetchQueries: [{ query: GET_TASKS_QUERY }],
+        awaitRefetchQueries: true,
+    });
 
     const getToken = () => localStorage.getItem('token');
 
     useEffect(() => {
-        fetchTasks();
+        loadTasks({
+            context: {
+                headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                },
+            },
+        });
     }, []);
 
-    const fetchTasks = async () => {
-        try {
-            const token = getToken();
-            console.log('Token:', token);
-            const response = await fetch("http://localhost:3001/api/tasks", {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
-            console.log('Response data:', data);
-            setTasks(data.tasks || []);
-        } catch (error) {
-            console.error("Error fetching tasks:", error);
+    useEffect(() => {
+        if (data && data.tasks) {
+            console.log("Fetched tasks:", data.tasks); // Aquí 'tasks', no 'getTasks'
+            setTasks(data.tasks);
         }
-    };
+    }, [data]);
+
+    const [createTask] = useMutation(CREATE_TASK_MUTATION, {
+        refetchQueries: [{ query: GET_TASKS_QUERY }],
+        awaitRefetchQueries: true,
+    });
 
     const handleAddTask = async (e) => {
         e.preventDefault();
+
+        if (!title) return alert("El título es obligatorio");
         try {
-            const token = getToken();
-            const response = await fetch("http://localhost:3001/api/tasks", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ title: taskTitle, description: taskDescription }),
+            
+            await createTask({
+                variables: { title, description, dueDate },
             });
-            const data = await response.json();
-
-            if (!response.ok) {
-                alert(data.message || "Error al crear la tarea");
-                return;
-            }
-
-            setTasks((prev) => [...prev, data.task]);
             setTaskTitle("");
             setTaskDescription("");
         } catch (error) {
@@ -63,24 +72,10 @@ const DashboardPage = () => {
     };
 
     const handleCompleteTask = async (_id) => {
-        const task = tasks.find((t) => t._id === _id);
-        if (!task) return;
-
         try {
-            const token = getToken();
-            const response = await fetch(`http://localhost:3001/api/tasks/${_id}/complete`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ completed: !task.completed }),
+            await completeTask({
+                variables: { id: _id },
             });
-
-            if (!response.ok) throw new Error("Error actualizando completed");
-
-            const data = await response.json();
-            setTasks((prev) => prev.map((t) => (t._id === _id ? data.task : t)));
         } catch (error) {
             console.error("Error completing task:", error);
         }
@@ -94,17 +89,13 @@ const DashboardPage = () => {
 
     const handleSaveEdit = async (_id) => {
         try {
-            const token = getToken();
-            const response = await fetch(`http://localhost:3001/api/tasks/${_id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+            await updateTask({
+                variables: {
+                    id: _id,
+                    title: editTitle,
+                    description: editDescription,
                 },
-                body: JSON.stringify({ title: editTitle, description: editDescription }),
             });
-            const data = await response.json();
-            setTasks((prev) => prev.map((t) => (t._id === _id ? data.task : t)));
             setEditingId(null);
             setEditTitle("");
             setEditDescription("");
@@ -121,17 +112,9 @@ const DashboardPage = () => {
 
     const handleDeleteTask = async (_id) => {
         try {
-            const token = getToken();
-            const response = await fetch(`http://localhost:3001/api/tasks/${_id}`, {
-                method: "DELETE",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            await deleteTask({
+                variables: { id: _id },
             });
-
-            if (response.ok) {
-                setTasks((prev) => prev.filter((task) => task._id !== _id));
-            }
         } catch (error) {
             console.error("Error deleting task:", error);
         }
@@ -141,9 +124,9 @@ const DashboardPage = () => {
         <div className="dashboard-container">
             <h1>Mi Lista de Tareas</h1>
             <TaskForm
-                taskTitle={taskTitle}
+                taskTitle={title}
                 setTaskTitle={setTaskTitle}
-                taskDescription={taskDescription}
+                taskDescription={description}
                 setTaskDescription={setTaskDescription}
                 onSubmit={handleAddTask}
             />

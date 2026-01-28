@@ -1,26 +1,16 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-const auth = (req, res, next) => {
+function getUserFromToken(token) {
+    if(!token) return null;
+
     try {
-        const token = req.header("Authorization")?.replace("Bearer ", "");
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: "Acceso denegado. Token no proporcionado"
-            });
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
-        console.log('Decoded token:', decoded);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        res.status(401).json({
-            success: false,
-            message: "Token inválido"
-        });
+        const actualToken = token.replace("Bearer ", "");
+        const decoded = jwt.verify(actualToken, process.env.JWT_SECRET || "fallback_secret");
+        return decoded;
+    } catch(error) {
+        console.error("Token invalido")
+        return null;
     }
 };
 
-module.exports = auth;
+export default getUserFromToken;

@@ -1,6 +1,6 @@
-import { gql } from 'graphql-tag'; 
+import { gql } from "graphql-tag";
 
-export const typeDefs = gql`
+const typeDefs = gql`
     type User {
         _id: ID!
         name: String!
@@ -9,13 +9,31 @@ export const typeDefs = gql`
         updatedAt: String
     }
 
+    type LoginResponse {
+        token: String!
+        user: User!
+        errors: ValidationUserErrors
+    }
+
+    type UserResponse {
+        token: String!
+        user: User
+        errors: ValidationUserErrors
+    }
+
+    type ValidationUserErrors {
+        name: String
+        email: String
+        password: String
+    }
+
     type Task {
         _id: ID!
         title: String!
         description: String
-        user: ID!
+        user: User
         dueDate: String
-        completed: Boolean
+        completed: Boolean!
         createdAt: String
         updatedAt: String
     }
@@ -23,16 +41,17 @@ export const typeDefs = gql`
     type Query {
         tasks: [Task!]!
         task(id: ID!): Task
-        users: [User!]!
         user(id: ID!): User
+    
     }
 
     type Mutation {
         createTask(title: String!, description: String, dueDate: String): Task!
         updateTask(id: ID!, title: String, description: String, dueDate: String, completed: Boolean): Task!
         deleteTask(id: ID!): Boolean!
-        createUser(name: String!, email: String!, password: String!): User!
-        updateUser(id: ID!, name: String, email: String): User!
-        deleteUser(id: ID!): Boolean!
+        completeTask(id: ID!): Task!
+        createUser(name: String!, email: String!, password: String!): UserResponse!
+        login(email: String!, password: String!): LoginResponse!
     }
 `;
+export default typeDefs;

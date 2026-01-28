@@ -1,29 +1,36 @@
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const connectDB = require("./config/db");
-const userRoutes = require("./routes/user.routes");
-const TaskRoutes = require("./routes/task.routes");
+import typeDefs from "./graphql/typeDefs.js";
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { ApolloServer } from "@apollo/server";
+import { mergeResolvers } from "@graphql-tools/merge";
 
-const app = express();
+import connectDB from "./config/db.js";
+import userResolver from "./graphql/resolvers/userResolver.js";
+import taskResolver from "./graphql/resolvers/taskResolver.js";
+import getUserFromToken from "./middleware/auth.js";
 
 // Conectar a la DB
 connectDB();
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+const resolvers = mergeResolvers([userResolver, taskResolver]);
 
-// Rutas
-app.use("/api/users", userRoutes);
-app.use("/api/tasks", TaskRoutes);
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  introspection: true, // Permite ver todo el schema en Sandbox
 });
 
+const PORT = process.env.PORT || 3001;
 
-module.exports = app;
+const { url } = await startStandaloneServer(server, {
+  listen: { port: PORT },
+  context: async ({ req }) => {
+    const token = req.headers.authorization || '';
+    const user = getUserFromToken(token);
+    return { user };
+  }
+});
+
+console.log(`Servidor GraphQL listo en ${url}`);

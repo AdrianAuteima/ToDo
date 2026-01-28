@@ -1,5 +1,24 @@
 import '../dashboard.css';
 
+const formatDate = (timestamp) => {
+  if (!timestamp) return "-";
+
+  const date = new Date(Number(timestamp)); // convertir milisegundos a Date
+
+  const pad = (num) => num.toString().padStart(2, "0");
+
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear().toString().slice(-2);
+
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+
+
 const TaskTable = ({ 
     tasks, 
     editingId, 
@@ -50,7 +69,7 @@ const TaskTable = ({
                   <span>{task.description || "-"}</span>
                 )}
               </td>
-              <td>{task.createdAt}</td>
+              <td>{formatDate(task.updatedAt)}</td>
               <td>
                 {editingId === task._id ? (
                   <>

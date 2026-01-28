@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import './App.css';
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
@@ -15,7 +16,11 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route 
             path="/dashboard" 
-            element={<Dashboard />} 
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
           />
         </Routes>
       </div>

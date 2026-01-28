@@ -1,6 +1,6 @@
-const Task = require('../../models/taskModel');
+import Task  from '../../models/taskModel.js';
 
-const { AuthenticationError, ForbiddenError, UserInputError } = require('apollo-server-express');
+
 
 const taskResolver = {
     Query: {
@@ -8,13 +8,13 @@ const taskResolver = {
         tasks: async (_, __, context) => {
             try {
                 if (!context.user) {
-                    throw new AuthenticationError('No autorizado');
+                    throw new Error('No autorizado');
                 }
                 const userId = context.user.id;
-                const tasks = await Task.find({ user: userId });
+                const tasks = await Task.find({ user: userId }).populate('user', '_id name');
                 return tasks;
             } catch (error) {
-                throw new ForbiddenError(`Error al obtener tareas: ${error.message}`);
+                throw new Error(`Error al obtener tareas`);
             }
         },
 
@@ -22,22 +22,22 @@ const taskResolver = {
         task: async (_, { id }, context) => {
             try {
                 if (!context.user) {
-                    throw new AuthenticationError('No autorizado');
+                    throw new Error('No autorizado');
                 }
                 const task = await Task.findById(id);
                 
                 if (!task) {
-                    throw new ForbiddenError('Tarea no encontrada');
+                    throw new Error('Tarea no encontrada');
                 }
 
                 // Verificar que la tarea pertenece al usuario autenticado
                 if (task.user._id.toString() !== context.user.id) {
-                    throw new AuthenticationError('No tienes permisos para acceder a esta tarea');
+                    throw new Error('No tienes permisos para acceder a esta tarea');
                 }
 
                 return task;
             } catch (error) {
-                throw new ForbiddenError(`Error al obtener la tarea: ${error.message}`);
+                throw new Error(`Error al obtener la tarea: ${error.message}`);
             }
         }
     },
@@ -47,11 +47,11 @@ const taskResolver = {
         createTask: async (_, { title, description, dueDate }, context) => {
             try {
                 if (!context.user) {
-                    throw new AuthenticationError('No autorizado');
+                    throw new Error('No autorizado');
                 }
 
                 if (!title || title.trim() === '') {
-                    throw new UserInputError('El título de la tarea es requerido');
+                    throw new Error('El título de la tarea es requerido');
                 }
 
                 const newTask = new Task({
@@ -64,7 +64,7 @@ const taskResolver = {
                 const savedTask = await newTask.save();
                 return savedTask;
             } catch (error) {
-                throw new ForbiddenError(`Error al crear la tarea: ${error.message}`);
+                throw new Error(`Error al crear la tarea: ${error.message}`);
             }
         },
 
@@ -72,21 +72,21 @@ const taskResolver = {
         updateTask: async (_, { id, title, description, dueDate, completed }, context) => {
             try {
                 if (!context.user) {
-                    throw new AuthenticationError('No autorizado');
+                    throw new Error('No autorizado');
                 }
 
                 if (title && title.trim() === '') {
-                    throw new UserInputError('El título de la tarea es requerido');
+                    throw new Error('El título de la tarea es requerido');
                 }
 
                 // Verificar que la tarea pertenece al usuario
                 const task = await Task.findById(id);
                 if (!task) {
-                    throw new ForbiddenError('Tarea no encontrada');
+                    throw new Error('Tarea no encontrada');
                 }
 
                 if (task.user.toString() !== context.user.id) {
-                    throw new AuthenticationError('No tienes permisos para actualizar esta tarea');
+                    throw new Error('No tienes permisos para actualizar esta tarea');
                 }
 
                 const updateData = {};
@@ -103,7 +103,7 @@ const taskResolver = {
 
                 return updatedTask;
             } catch (error) {
-                throw new ForbiddenError(`Error al actualizar la tarea: ${error.message}`);
+                throw new Error(`Error al actualizar la tarea: ${error.message}`);
             }
         },
 
@@ -111,25 +111,44 @@ const taskResolver = {
         deleteTask: async (_, { id }, context) => {
             try {
                 if (!context.user) {
-                    throw new AuthenticationError('No autorizado');
+                    throw new Error('No autorizado');
                 }
 
                 const task = await Task.findById(id);
                 if (!task) {
-                    throw new ForbiddenError('Tarea no encontrada');
+                    throw new Error('Tarea no encontrada');
                 }
 
                 if (task.user.toString() !== context.user.id) {
-                    throw new AuthenticationError('No tienes permisos para eliminar esta tarea');
+                    throw new Error('No tienes permisos para eliminar esta tarea');
                 }
 
                 await Task.findByIdAndDelete(id);
                 return true;
             } catch (error) {
-                throw new ForbiddenError(`Error al eliminar la tarea: ${error.message}`);
+                throw new Error(`Error al eliminar la tarea: ${error.message}`);
+            }
+        },
+
+        completeTask: async (_, { id }, context) => {
+            try {
+                if (!context.user) {
+                    throw new Error('No autorizado');
+                }
+                const task = await Task.findById(id);
+                if (!task) {
+                    throw new Error('Tarea no encontrada');
+                }
+                const updatedTask = await Task.findByIdAndUpdate(
+                    id,
+                    { completed: !task.completed },
+                    { new: true }
+                );
+                return updatedTask;
+            } catch (error) {
+                throw new Error(`Error al completar la tarea: ${error.message}`);
             }
         }
     }
-};
-
-module.exports = taskResolver;
+}
+export default taskResolver;

@@ -2,24 +2,39 @@ import React from 'react';
 import RegisterForm from '../components/RegisterForm';
 import { register } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { REGISTER_MUTATION } from '../graphql/user/userMutation';
+import { useMutation } from "@apollo/client";
 import './RegisterPage.css';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
 
+  const [ registerMutation ] = useMutation(REGISTER_MUTATION);
+
   const handleRegister = async (userData) => {
     try {
-      const response = await register(userData);
-      
-      if (response.success) {
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        navigate('/dashboard');
-      } else {
-        throw new Error(response.message || 'Error al registrar usuario');
+      const { data } = await registerMutation({
+        variables: {
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+        },
+      });
+      console.log(data);
+      if (data.createUser.errors) {
+        throw new Error(data.createUser.errors.message || 'Error al registrar usuario');
       }
+
+      const user = data.createUser.user;
+      const token = data.createUser.token;
+
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('token', token);
+      console.log("Usuario registrado y token almacenado:", token);
+      navigate('/dashboard');
+
     } catch (error) {
-      throw error;
+      throw new Error(error.message || 'Error al registrar usuario');
     }
   };
 
